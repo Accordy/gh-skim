@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
-import { BATCH_SIZE, GitHubClient } from "./github.ts";
+import { BATCH_SIZE, GitHubClient, MAX_RESET_WAIT_MS, retryDelayMs } from "./github.ts";
 
 type Call = { query: string; variables: Record<string, unknown> };
 
@@ -126,6 +126,78 @@ describe("secondary rate limit", () => {
     const out = await new GitHubClient("t").setViewed("PR", paths(1), "mark");
     expect(s.calls).toHaveLength(6);
     expect(out.failed).toHaveLength(1);
+    sleep.mockRestore();
+  });
+});
+
+describe("what is retried", () => {
+  const reply = (over: Partial<Parameters<typeof retryDelayMs>[0]>) => ({
+    status: 200,
+    retryAfter: null,
+    remaining: null,
+    reset: null,
+    body: { data: {} },
+    ...over,
+  });
+  const NOW = 1_000_000_000_000;
+  const resetIn = (ms: number) => (NOW + ms) / 1000;
+
+  test("a success is never retried, even with a retry-after or nothing left", () => {
+    expect(retryDelayMs(reply({ retryAfter: 30, remaining: 0 }), 0, NOW)).toBeNull();
+  });
+
+  test("the secondary limit honours retry-after, then backs off", () => {
+    expect(retryDelayMs(reply({ status: 403, retryAfter: 60, body: {} }), 0, NOW)).toBe(60_000);
+    expect(retryDelayMs(reply({ status: 429, body: {} }), 1, NOW)).toBe(10_000);
+  });
+
+  test("a used-up hourly limit waits for its reset when it is close", () => {
+    const graphql = reply({ body: { errors: [{ type: "RATE_LIMITED" }] }, reset: resetIn(30_000) });
+    expect(retryDelayMs(graphql, 0, NOW)).toBe(31_000);
+    const rest = reply({ status: 403, remaining: 0, reset: resetIn(30_000), body: null });
+    expect(retryDelayMs(rest, 0, NOW)).toBe(31_000);
+  });
+
+  test("a used-up hourly limit fails at once when the reset is far off or unknown", () => {
+    const far = reply({ status: 403, remaining: 0, reset: resetIn(MAX_RESET_WAIT_MS), body: null });
+    expect(retryDelayMs(far, 0, NOW)).toBeNull();
+    expect(retryDelayMs(reply({ status: 403, remaining: 0, body: null }), 0, NOW)).toBeNull();
+  });
+
+  test("an error that would come back the same way is not retried", () => {
+    const rejected = reply({ body: { errors: [{ message: 'Parse error on "}"' }] } });
+    expect(retryDelayMs(rejected, 0, NOW)).toBeNull();
+    expect(retryDelayMs(reply({ status: 401, body: {} }), 0, NOW)).toBeNull();
+  });
+
+  test("a 5xx and a 200 that is not JSON are retried, up to the limit", () => {
+    expect(retryDelayMs(reply({ status: 502, body: {} }), 0, NOW)).toBe(5_000);
+    expect(retryDelayMs(reply({ body: { raw: "<html>" } }), 0, NOW)).toBe(5_000);
+    expect(retryDelayMs(reply({ status: 502, body: {} }), 5, NOW)).toBeNull();
+  });
+
+  test("a query GitHub rejects fails on the first answer, without waiting", async () => {
+    const s = stubFetch([{ body: { errors: [{ message: "Field 'nope' doesn't exist" }] } }]);
+    restore = s.restore;
+    const sleep = spyOn(Bun, "sleep").mockResolvedValue(undefined as any);
+    await expect(new GitHubClient("t").getLanguages("o", "r")).rejects.toThrow(/doesn't exist/);
+    expect(s.calls).toHaveLength(1);
+    expect(sleep).not.toHaveBeenCalled();
+    sleep.mockRestore();
+  });
+
+  test("a client waits out a close reset and carries on", async () => {
+    const reset = String(Math.floor(Date.now() / 1000) + 20);
+    const s = stubFetch([
+      { headers: { "x-ratelimit-reset": reset }, body: { errors: [{ type: "RATE_LIMITED" }] } },
+      { body: { data: { repository: { languages: { nodes: [{ name: "Go" }] } } } } },
+    ]);
+    restore = s.restore;
+    const sleep = spyOn(Bun, "sleep").mockResolvedValue(undefined as any);
+    expect(await new GitHubClient("t").getLanguages("o", "r")).toEqual(["Go"]);
+    const waited = sleep.mock.calls[0]![0] as number;
+    expect(waited).toBeGreaterThan(15_000);
+    expect(waited).toBeLessThanOrEqual(21_000);
     sleep.mockRestore();
   });
 });

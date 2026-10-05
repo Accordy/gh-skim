@@ -10,6 +10,11 @@
  * 2. The secondary rate limit answers with 403 plus `retry-after`, and it hits
  *    plain queries issued right after a burst of mutations, not just the
  *    mutations. Every request goes through the same retry wrapper.
+ *
+ * The hourly (primary) limit is different: once used up, GraphQL answers 200
+ * with a RATE_LIMITED error and REST answers 403 with `x-ratelimit-remaining:
+ * 0`. Backing off for seconds cannot help, so we wait for `x-ratelimit-reset`
+ * when it is close and fail at once when it is not.
  */
 
 export const BATCH_SIZE = 50;
@@ -19,10 +24,51 @@ export const MAX_ALIASES_PER_REQUEST = 76;
 const ENDPOINT = "https://api.github.com/graphql";
 export const USER_AGENT = "gh-skim";
 const MAX_RETRIES = 5;
+/** Longest wait for the hourly limit to reset; further off, the request fails instead. */
+export const MAX_RESET_WAIT_MS = 5 * 60_000;
 
-/** `retry-after` when GitHub sent one, otherwise a linear backoff capped at a minute. */
-function backoffMs(retryAfter: number | null, attempt: number): number {
-  return (retryAfter ?? Math.min(60, 5 * (attempt + 1))) * 1000;
+/** What decides a retry, read from one response. */
+type Reply = {
+  status: number;
+  retryAfter: number | null;
+  /** `x-ratelimit-remaining`. */
+  remaining: number | null;
+  /** `x-ratelimit-reset`, epoch seconds. */
+  reset: number | null;
+  body: any;
+};
+
+const numberHeader = (headers: { get(k: string): string | null }, name: string) => {
+  const v = headers.get(name);
+  return v === null || v === "" ? null : Number(v);
+};
+
+/**
+ * How long to wait before sending a request again, or null to stop and let the
+ * caller report the response.
+ *
+ * Retried: the secondary limit (403/429, honouring `retry-after`), 5xx, and a
+ * 200 whose body is not JSON. Not retried: anything else, such as a query
+ * GitHub rejected, which would fail the same way every time.
+ */
+export function retryDelayMs(r: Reply, attempt: number, now = Date.now()): number | null {
+  if (attempt >= MAX_RETRIES) return null;
+
+  const hourlyLimit =
+    r.retryAfter === null &&
+    (((r.status === 403 || r.status === 429) && r.remaining === 0) ||
+      (r.body?.errors ?? []).some((e: any) => e?.type === "RATE_LIMITED"));
+  if (hourlyLimit) {
+    if (r.reset === null) return null;
+    const wait = Math.max(0, r.reset * 1000 - now) + 1000;
+    return wait <= MAX_RESET_WAIT_MS ? wait : null;
+  }
+
+  const throttled =
+    r.status === 403 || r.status === 429 || (r.retryAfter !== null && r.status >= 400);
+  const transient = r.status >= 500 || (r.status === 200 && r.body?.raw !== undefined);
+  if (!throttled && !transient) return null;
+  return (r.retryAfter ?? Math.min(60, 5 * (attempt + 1))) * 1000;
 }
 
 export type FileViewedState = "VIEWED" | "UNVIEWED" | "DISMISSED";
@@ -45,19 +91,13 @@ export type BatchOutcome = {
   failed: { path: string; message: string }[];
 };
 
-type Response = {
-  status: number;
-  retryAfter: number | null;
-  body: any;
-};
-
 export class GitHubClient {
   constructor(
     private readonly token: string,
     private readonly log: (msg: string) => void = () => {},
   ) {}
 
-  private async request(query: string, variables: Record<string, unknown>): Promise<Response> {
+  private async request(query: string, variables: Record<string, unknown>): Promise<Reply> {
     const r = await fetch(ENDPOINT, {
       method: "POST",
       headers: {
@@ -74,26 +114,27 @@ export class GitHubClient {
     } catch {
       body = { raw: text.slice(0, 400) };
     }
-    const ra = r.headers.get("retry-after");
-    return { status: r.status, retryAfter: ra ? Number(ra) : null, body };
+    return {
+      status: r.status,
+      retryAfter: numberHeader(r.headers, "retry-after"),
+      remaining: numberHeader(r.headers, "x-ratelimit-remaining"),
+      reset: numberHeader(r.headers, "x-ratelimit-reset"),
+      body,
+    };
   }
 
-  /** Honours retry-after and retries 403/429/5xx. Used for queries and mutations alike. */
+  /** Used for queries and mutations alike; see `retryDelayMs` for what is retried. */
   private async requestWithRetry(
     query: string,
     variables: Record<string, unknown>,
     label: string,
-  ): Promise<Response> {
+  ): Promise<Reply> {
     for (let attempt = 0; ; attempt++) {
       const res = await this.request(query, variables);
-      const throttled = res.status === 403 || res.status === 429 || res.retryAfter !== null;
-      const serverError = res.status >= 500;
-      const noPayload = res.status === 200 && res.body?.data === undefined;
-      if (!throttled && !serverError && !noPayload) return res;
-      if (attempt >= MAX_RETRIES) return res;
-      const wait = backoffMs(res.retryAfter, attempt);
+      const wait = retryDelayMs(res, attempt);
+      if (wait === null) return res;
       this.log(
-        `rate limited on ${label} (http ${res.status}), waiting ${wait / 1000}s before retry ${attempt + 1}`,
+        `rate limited on ${label} (http ${res.status}), waiting ${Math.ceil(wait / 1000)}s before retry ${attempt + 1}`,
       );
       await Bun.sleep(wait);
     }
@@ -213,15 +254,24 @@ export class GitHubClient {
       });
       if (r.ok) return await r.text();
       if (r.status === 404) return null;
-      const ra = r.headers.get("retry-after");
-      const retryable = r.status === 403 || r.status === 429 || r.status >= 500;
-      if (!retryable || attempt >= MAX_RETRIES) {
+      const wait = retryDelayMs(
+        {
+          status: r.status,
+          retryAfter: numberHeader(r.headers, "retry-after"),
+          remaining: numberHeader(r.headers, "x-ratelimit-remaining"),
+          reset: numberHeader(r.headers, "x-ratelimit-reset"),
+          body: null,
+        },
+        attempt,
+      );
+      if (wait === null) {
         throw new Error(
           `read ${path} at ${ref} failed: http ${r.status} ${(await r.text()).slice(0, 200)}`,
         );
       }
-      const wait = backoffMs(ra ? Number(ra) : null, attempt);
-      this.log(`rate limited on read ${path} (http ${r.status}), waiting ${wait / 1000}s`);
+      this.log(
+        `rate limited on read ${path} (http ${r.status}), waiting ${Math.ceil(wait / 1000)}s`,
+      );
       await Bun.sleep(wait);
     }
   }
