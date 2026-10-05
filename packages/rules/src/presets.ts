@@ -64,9 +64,7 @@ export function loadPreset(name: string): string {
   return text;
 }
 
-export function presetSources(
-  names: string[],
-): PatternSource[] {
+export function presetSources(names: string[]): PatternSource[] {
   return names.map((n) => ({
     name: `preset:${n}`,
     patterns: parsePatterns(loadPreset(n)),
@@ -96,9 +94,7 @@ export type PresetDirective =
  * It has to be the first line so the file stays valid gitignore and other
  * tools keep treating it as a comment.
  */
-export function parsePresetDirective(
-  text: string,
-): PresetDirective {
+export function parsePresetDirective(text: string): PresetDirective {
   const first = text.split("\n", 1)[0]?.trim() ?? "";
   const m = /^#\s*preset:\s*(.*)$/i.exec(first);
   if (!m) return { kind: "absent" };
@@ -124,9 +120,7 @@ export function linguistGeneratedPatterns(gitattributes: string): string[] {
     const parts = line.split(/\s+/);
     const pattern = parts[0]!;
     const attrs = parts.slice(1);
-    const on = attrs.some(
-      (a) => a === "linguist-generated" || a === "linguist-generated=true",
-    );
+    const on = attrs.some((a) => a === "linguist-generated" || a === "linguist-generated=true");
     const off = attrs.some((a) => a === "-linguist-generated" || a === "linguist-generated=false");
     if (on && !off) out.push(pattern);
   }

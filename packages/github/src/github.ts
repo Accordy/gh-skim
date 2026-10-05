@@ -17,6 +17,13 @@ export const BATCH_SIZE = 50;
 export const MAX_ALIASES_PER_REQUEST = 76;
 
 const ENDPOINT = "https://api.github.com/graphql";
+export const USER_AGENT = "gh-skim";
+const MAX_RETRIES = 5;
+
+/** `retry-after` when GitHub sent one, otherwise a linear backoff capped at a minute. */
+function backoffMs(retryAfter: number | null, attempt: number): number {
+  return (retryAfter ?? Math.min(60, 5 * (attempt + 1))) * 1000;
+}
 
 export type FileViewedState = "VIEWED" | "UNVIEWED" | "DISMISSED";
 
@@ -30,8 +37,6 @@ export type ChangedFile = {
 
 export type PullRequestInfo = {
   id: string;
-  number: number;
-  baseRefName: string;
   headRefOid: string;
   files: ChangedFile[];
   /** Paths that already carry review threads; never touched. */
@@ -61,7 +66,7 @@ export class GitHubClient {
       headers: {
         authorization: `bearer ${this.token}`,
         "content-type": "application/json",
-        "user-agent": "gh-skim",
+        "user-agent": USER_AGENT,
       },
       body: JSON.stringify({ query, variables }),
     });
@@ -88,8 +93,8 @@ export class GitHubClient {
       const serverError = res.status >= 500;
       const noPayload = res.status === 200 && res.body?.data === undefined;
       if (!throttled && !serverError && !noPayload) return res;
-      if (attempt >= 5) return res;
-      const wait = (res.retryAfter ?? Math.min(60, 5 * (attempt + 1))) * 1000;
+      if (attempt >= MAX_RETRIES) return res;
+      const wait = backoffMs(res.retryAfter, attempt);
       this.log(
         `rate limited on ${label} (http ${res.status}), waiting ${wait / 1000}s before retry ${attempt + 1}`,
       );
@@ -127,16 +132,14 @@ export class GitHubClient {
     const reviewThreadPaths = new Set<string>();
     let cursor: string | null = null;
     let id = "";
-    let baseRefName = "";
     let headRefOid = "";
 
     for (;;) {
-      const data = await this.query<any>(
+      const data: any = await this.query<any>(
         `query($owner:String!,$repo:String!,$pr:Int!,$cursor:String){
            repository(owner:$owner,name:$repo){
              pullRequest(number:$pr){
-               id baseRefName
-               headRefOid: headRefOid
+               id headRefOid
                files(first:100, after:$cursor){
                  pageInfo{ hasNextPage endCursor }
                  nodes{ path changeType additions deletions ${viewedField} }
@@ -147,10 +150,9 @@ export class GitHubClient {
         { owner, repo, pr: number, cursor },
         "pull request files",
       );
-      const p = data.repository?.pullRequest;
+      const p: any = data.repository?.pullRequest;
       if (!p) throw new Error(`${owner}/${repo}#${number} not found, or no access to it`);
       id = p.id;
-      baseRefName = p.baseRefName;
       headRefOid = p.headRefOid;
       for (const n of p.files.nodes) {
         files.push({ viewerViewedState: "UNVIEWED", ...n });
@@ -162,7 +164,7 @@ export class GitHubClient {
     // Review threads are a separate connection; paginate it too.
     let tCursor: string | null = null;
     for (;;) {
-      const data = await this.query<any>(
+      const data: any = await this.query<any>(
         `query($owner:String!,$repo:String!,$pr:Int!,$cursor:String){
            repository(owner:$owner,name:$repo){
              pullRequest(number:$pr){
@@ -176,13 +178,13 @@ export class GitHubClient {
         { owner, repo, pr: number, cursor: tCursor },
         "review threads",
       );
-      const t = data.repository.pullRequest.reviewThreads;
+      const t: any = data.repository.pullRequest.reviewThreads;
       for (const n of t.nodes) if (n.path) reviewThreadPaths.add(n.path);
       if (!t.pageInfo.hasNextPage) break;
       tCursor = t.pageInfo.endCursor;
     }
 
-    return { id, number, baseRefName, headRefOid, files, reviewThreadPaths };
+    return { id, headRefOid, files, reviewThreadPaths };
   }
 
   /** A text file from a ref, or null when it does not exist. */
@@ -203,17 +205,17 @@ export class GitHubClient {
         headers: {
           authorization: `bearer ${this.token}`,
           accept: "application/vnd.github.raw+json",
-          "user-agent": "gh-skim",
+          "user-agent": USER_AGENT,
         },
       });
       if (r.ok) return await r.text();
       if (r.status === 404) return null;
       const ra = r.headers.get("retry-after");
       const retryable = r.status === 403 || r.status === 429 || r.status >= 500;
-      if (!retryable || attempt >= 5) {
+      if (!retryable || attempt >= MAX_RETRIES) {
         throw new Error(`read ${path} at ${ref} failed: http ${r.status} ${(await r.text()).slice(0, 200)}`);
       }
-      const wait = (ra ? Number(ra) : Math.min(60, 5 * (attempt + 1))) * 1000;
+      const wait = backoffMs(ra ? Number(ra) : null, attempt);
       this.log(`rate limited on read ${path} (http ${r.status}), waiting ${wait / 1000}s`);
       await Bun.sleep(wait);
     }

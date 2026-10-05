@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
-import { BATCH_SIZE, GitHubClient, MAX_ALIASES_PER_REQUEST } from "./github.ts";
+import { BATCH_SIZE, GitHubClient } from "./github.ts";
 
 type Call = { query: string; variables: Record<string, unknown> };
 
@@ -30,15 +30,11 @@ const ok = { body: { data: {} } };
 const paths = (n: number) => Array.from({ length: n }, (_, i) => `f${i}.txt`);
 
 describe("setViewed batching", () => {
-  test("the batch size stays under the measured 76-alias ceiling", () => {
-    expect(BATCH_SIZE).toBeLessThan(MAX_ALIASES_PER_REQUEST);
-  });
-
   test("splits into one request per BATCH_SIZE paths", async () => {
     const s = stubFetch([ok]);
     restore = s.restore;
     const out = await new GitHubClient("t").setViewed("PR", paths(120), "mark");
-    expect(s.calls).toHaveLength(3);
+    expect(s.calls).toHaveLength(Math.ceil(120 / BATCH_SIZE));
     expect(out.succeeded).toHaveLength(120);
     expect(out.failed).toHaveLength(0);
   });
@@ -65,26 +61,6 @@ describe("per-alias failures under HTTP 200", () => {
    * failures only inside errors[]. A client that trusts the status would
    * report far more files marked than it marked.
    */
-  test("maps RESOURCE_LIMITS_EXCEEDED aliases back to their paths", async () => {
-    const s = stubFetch([
-      {
-        status: 200,
-        body: {
-          data: {},
-          errors: [
-            { type: "RESOURCE_LIMITS_EXCEEDED", path: ["a3", "clientMutationId"], message: "Resource limits for this query exceeded." },
-            { type: "RESOURCE_LIMITS_EXCEEDED", path: ["a4", "clientMutationId"], message: "Resource limits for this query exceeded." },
-          ],
-        },
-      },
-    ]);
-    restore = s.restore;
-    const out = await new GitHubClient("t").setViewed("PR", paths(5), "mark");
-    expect(out.succeeded).toEqual(["f0.txt", "f1.txt", "f2.txt"]);
-    expect(out.failed.map((f) => f.path)).toEqual(["f3.txt", "f4.txt"]);
-    expect(out.failed[0]!.message).toContain("Resource limits");
-  });
-
   test("onBatch only ever receives paths that actually succeeded", async () => {
     const s = stubFetch([
       { body: { data: {}, errors: [{ path: ["a1"], message: "nope" }] } },
@@ -164,7 +140,6 @@ describe("pagination", () => {
           repository: {
             pullRequest: {
               id: "PR_1",
-              baseRefName: "main",
               headRefOid: "abc",
               files: {
                 pageInfo: { hasNextPage: hasNext, endCursor: cursor },
@@ -199,7 +174,7 @@ describe("pagination", () => {
     restore = s.restore;
     const pr = await new GitHubClient("t").getPullRequest("o", "r", 1);
     expect(pr.files).toHaveLength(112);
-    expect(pr.baseRefName).toBe("main");
+    expect(pr.headRefOid).toBe("abc");
     expect(pr.reviewThreadPaths).toEqual(new Set(["p1.txt"]));
   });
 

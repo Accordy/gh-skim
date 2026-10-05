@@ -5,9 +5,8 @@ import { homedir } from "node:os";
 import type { MarkStore } from "@skim/engine";
 
 /**
- * What we marked, per PR. Rule 3 of the product brief: after the fact we
- * cannot tell our mark from one the reviewer set by hand, so undo only ever
- * touches paths recorded here.
+ * What we marked, per PR. After the fact we cannot tell our mark from one the
+ * reviewer set by hand, so undo only ever touches paths recorded here.
  */
 export type LedgerEntry = {
   path: string;

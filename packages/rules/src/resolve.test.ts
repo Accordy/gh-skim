@@ -111,7 +111,7 @@ describe("resolveRules", () => {
     });
   });
 
-  test("the bench repo's real config hides 1800 snapshots and nothing else", async () => {
+  test("the bench repo's config hides snapshots, generated code and locks, and nothing else", async () => {
     const c = resolveRules(
       inputs({
         reviewIgnore: await fixture("review-ignore-swift"),

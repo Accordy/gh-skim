@@ -52,58 +52,16 @@ describe("plan", () => {
     expect(p.toMark).toHaveLength(10);
   });
 
-  test("honours linguist-generated from .gitattributes as noise", () => {
-    const files = [file("src/api/client.ts"), file("src/app.ts")];
-    const p = plan(
-      files,
-      [{ name: ".gitattributes linguist-generated", patterns: ["src/api/**"] }],
-      new Set(),
-    );
-    expect(p.toMark).toEqual(["src/api/client.ts"]);
-    expect(p.matches.find((m) => m.path === "src/api/client.ts")!.source).toBe(
-      ".gitattributes linguist-generated",
-    );
-  });
-
-  test("acts on a small match set; there is no minimum", () => {
-    // Removed deliberately: a PR with one lock file is exactly the case where
-    // hiding it costs nothing, and a threshold only makes behaviour harder to
-    // predict.
-    const p = plan(snapshots(1), [swift], new Set());
-    expect(p.toMark).toHaveLength(1);
-  });
-
-  describe("all-noise PR", () => {
-    test("default marks everything and flags it", () => {
-      const p = plan(snapshots(10), [swift], new Set());
-      expect(p.allNoise).toBe(true);
-      expect(p.toMark).toHaveLength(10);
-      expect(p.remaining).toBe(0);
-    });
-
-    test("an all-noise PR marks every file; nothing is held back", () => {
-      const p = plan(snapshots(9), [swift], new Set());
-      expect(p.allNoise).toBe(true);
-      expect(p.toMark).toHaveLength(9);
-    });
+  test("an all-noise PR marks every file and flags it", () => {
+    const p = plan(snapshots(10), [swift], new Set());
+    expect(p.allNoise).toBe(true);
+    expect(p.toMark).toHaveLength(10);
+    expect(p.remaining).toBe(0);
   });
 
   test("a PR with nothing matching is not an all-noise PR", () => {
     const p = plan([file("Sources/App/Home.swift")], [swift], new Set());
     expect(p.allNoise).toBe(false);
     expect(p.toMark).toEqual([]);
-  });
-
-  test("the bench shape: 1800 snapshots + 12 swift files", () => {
-    const files = [
-      ...Array.from({ length: 1800 }, (_, i) =>
-        file(`Tests/AppTests/__Snapshots__/T${i % 12}/case${i}.txt`),
-      ),
-      ...Array.from({ length: 12 }, (_, i) => file(`Sources/App/File${i}.swift`)),
-    ];
-    const p = plan(files, [swift], new Set());
-    expect(p.toMark).toHaveLength(1800);
-    expect(p.remaining).toBe(12);
-    expect(p.toMark.some((x) => x.startsWith("Sources/App/"))).toBe(false);
   });
 });

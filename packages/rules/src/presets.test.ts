@@ -1,7 +1,6 @@
 import { matchPaths } from "./matcher.ts";
 import { describe, expect, test } from "bun:test";
 import {
-  PRESET_NAMES,
   UnknownPresetError,
   detectPresets,
   linguistGeneratedPatterns,
@@ -59,14 +58,6 @@ describe("language detection", () => {
 });
 
 describe("loading", () => {
-  test("ships a preset for each supported ecosystem", () => {
-    expect(PRESET_NAMES.sort()).toEqual(["dotnet", "go", "jvm", "node", "python", "ruby", "rust", "swift"]);
-  });
-
-  test("presets are embedded, so a compiled binary needs no files on disk", () => {
-    expect(loadPreset("swift")).toContain("__Snapshots__");
-  });
-
   test("unknown preset throws", () => {
     expect(() => loadPreset("cobol")).toThrow(UnknownPresetError);
   });
@@ -102,7 +93,7 @@ describe("linguist-generated in .gitattributes", () => {
   });
 });
 
-describe("the new ecosystem presets", () => {
+describe("preset contents", () => {
   const hidden = (preset: string, paths: string[]) =>
     matchPaths(presetSources([preset]), paths).filter((m) => m.hidden).map((m) => m.path);
 

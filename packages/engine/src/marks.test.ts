@@ -3,38 +3,17 @@ import type { GitHubClient } from "@skim/github";
 import { markFiles, reconcileFailures, undoMarks, type MarkStore } from "./marks.ts";
 
 describe("reconcileFailures", () => {
-  test("a failure GitHub actually applied counts as landed", () => {
-    // The measured case: the tail of each aliased batch errors with
-    // "Resource limits for this query exceeded" but is VIEWED on GitHub.
-    const out = reconcileFailures([{ path: "a.txt" }], new Map([["a.txt", "VIEWED"]]));
-    expect(out.landed).toEqual(["a.txt"]);
-    expect(out.stillTodo).toEqual([]);
-  });
-
-  test("a failure that really did not apply is retried", () => {
-    const out = reconcileFailures([{ path: "b.txt" }], new Map([["b.txt", "UNVIEWED"]]));
-    expect(out.landed).toEqual([]);
-    expect(out.stillTodo).toEqual(["b.txt"]);
-  });
-
-  test("DISMISSED is not treated as landed", () => {
-    // The file changed again after the mark, so it still needs marking.
-    const out = reconcileFailures([{ path: "c.txt" }], new Map([["c.txt", "DISMISSED"]]));
-    expect(out.stillTodo).toEqual(["c.txt"]);
-  });
-
-  test("a path missing from the re-read is retried, never assumed done", () => {
-    const out = reconcileFailures([{ path: "gone.txt" }], new Map());
-    expect(out.stillTodo).toEqual(["gone.txt"]);
-  });
-
-  test("splits a mixed batch and preserves order", () => {
+  test("only a re-read VIEWED counts as landed; everything else is retried, in order", () => {
+    // The measured case: the tail of an aliased batch errors with "Resource
+    // limits for this query exceeded" but reads VIEWED moments later.
+    // DISMISSED means the file changed again, and a path missing from the
+    // re-read is never assumed done.
     const out = reconcileFailures(
-      [{ path: "1" }, { path: "2" }, { path: "3" }, { path: "4" }],
-      new Map([["1", "VIEWED"], ["2", "UNVIEWED"], ["3", "VIEWED"], ["4", null]]),
+      [{ path: "1" }, { path: "2" }, { path: "3" }, { path: "4" }, { path: "gone" }],
+      new Map([["1", "VIEWED"], ["2", "UNVIEWED"], ["3", "VIEWED"], ["4", "DISMISSED"]]),
     );
     expect(out.landed).toEqual(["1", "3"]);
-    expect(out.stillTodo).toEqual(["2", "4"]);
+    expect(out.stillTodo).toEqual(["2", "4", "gone"]);
   });
 });
 

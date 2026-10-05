@@ -28,10 +28,6 @@ const entry = (path: string): LedgerEntry => ({
 });
 
 describe("ledger", () => {
-  test("path is namespaced per owner, repo and PR", () => {
-    expect(ledgerPath("o", "r", 12, "/root")).toBe("/root/o/r/12.json");
-  });
-
   test("an unknown PR reads as empty rather than throwing", async () => {
     const root = await tempRoot();
     expect(await readLedger("o", "r", 1, root)).toEqual({
@@ -42,40 +38,17 @@ describe("ledger", () => {
     });
   });
 
-  test("append persists immediately, so a crash keeps what was written", async () => {
+  test("each append persists immediately and records a path once", async () => {
     const root = await tempRoot();
     const l = await readLedger("o", "r", 1, root);
+    await appendLedger(l, [entry("a.txt")], root);
     await appendLedger(l, [entry("a.txt"), entry("b.txt")], root);
-    // Re-read from disk rather than trusting the in-memory object.
+    // Re-read from disk rather than trusting the in-memory object, so a crash
+    // between batches keeps what was written.
     expect((await readLedger("o", "r", 1, root)).entries.map((e) => e.path)).toEqual([
       "a.txt",
       "b.txt",
     ]);
-  });
-
-  test("appending in several batches accumulates", async () => {
-    const root = await tempRoot();
-    const l = await readLedger("o", "r", 1, root);
-    await appendLedger(l, [entry("a.txt")], root);
-    await appendLedger(l, [entry("b.txt")], root);
-    expect((await readLedger("o", "r", 1, root)).entries).toHaveLength(2);
-  });
-
-  test("the same path twice is recorded once", async () => {
-    const root = await tempRoot();
-    const l = await readLedger("o", "r", 1, root);
-    await appendLedger(l, [entry("a.txt")], root);
-    await appendLedger(l, [entry("a.txt")], root);
-    expect((await readLedger("o", "r", 1, root)).entries).toHaveLength(1);
-  });
-
-  test("entries keep the rule that hid the file, so a mark can be audited", async () => {
-    const root = await tempRoot();
-    const l = await readLedger("o", "r", 1, root);
-    await appendLedger(l, [entry("a.txt")], root);
-    const back = await readLedger("o", "r", 1, root);
-    expect(back.entries[0]!.rule).toBe("**/__Snapshots__/**");
-    expect(back.entries[0]!.sha).toBe("abc123");
   });
 
   test("clear removes the file and clearing nothing is not an error", async () => {

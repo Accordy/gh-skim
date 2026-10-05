@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { groupByRule, matchPaths, parsePatterns, type PatternSource } from "./matcher.ts";
+import { PRESET_NAMES, loadPreset } from "./presets.ts";
 
 const src = (name: string, text: string): PatternSource => ({
   name,
@@ -76,12 +77,9 @@ describe("matchPaths", () => {
       expect(r[1]!.hidden).toBe(true);
     });
 
-    test("every shipped preset pattern that names a directory uses /**", async () => {
-      for (const name of ["swift", "node", "go", "python"]) {
-        const text = await Bun.file(
-          new URL(`../presets/${name}.gitignore`, import.meta.url),
-        ).text();
-        for (const p of parsePatterns(text)) {
+    test("every shipped preset pattern that names a directory uses /**", () => {
+      for (const name of PRESET_NAMES) {
+        for (const p of parsePatterns(loadPreset(name))) {
           expect(p.endsWith("/"), `${name}: "${p}" ends with / and would kill negation`).toBe(
             false,
           );

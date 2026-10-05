@@ -61,7 +61,12 @@ function parseFlags(argv: string[]): Flags {
       case "--rules": f.rules = argv[++i] ?? null; break;
       case "--preset": f.presets = (argv[++i] ?? "").split(",").map((s) => s.trim()).filter(Boolean); break;
       case "-R": case "--repo": f.repo = argv[++i] ?? null; break;
-      case "--interval": f.interval = Number(argv[++i] ?? 5); break;
+      case "--interval": {
+        const n = Number(argv[++i]);
+        if (!(n > 0)) throw new Error("--interval needs a number of minutes above 0");
+        f.interval = n;
+        break;
+      }
       default:
         if (a.startsWith("-")) throw new Error(`unknown option ${a}`);
         f.positional.push(a);
