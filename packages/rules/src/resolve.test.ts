@@ -3,8 +3,7 @@ import { needsLanguages, resolveRules, type RuleInputs } from "./resolve.ts";
 import { matchPaths } from "./matcher.ts";
 import { UnknownPresetError } from "./presets.ts";
 
-const fixture = (name: string) =>
-  Bun.file(new URL(`../fixtures/${name}`, import.meta.url)).text();
+const fixture = (name: string) => Bun.file(new URL(`../fixtures/${name}`, import.meta.url)).text();
 
 const inputs = (over: Partial<RuleInputs> = {}): RuleInputs => ({
   reviewIgnore: null,
@@ -136,7 +135,9 @@ describe("needsLanguages", () => {
   test("only when presets are detected", async () => {
     expect(needsLanguages({ reviewIgnore: null, presetOverride: null })).toBe(true);
     expect(needsLanguages({ reviewIgnore: "dist/\n", presetOverride: null })).toBe(true);
-    expect(needsLanguages({ reviewIgnore: await fixture("review-ignore-swift"), presetOverride: null })).toBe(false);
+    expect(
+      needsLanguages({ reviewIgnore: await fixture("review-ignore-swift"), presetOverride: null }),
+    ).toBe(false);
     expect(needsLanguages({ reviewIgnore: "# preset: none\n", presetOverride: null })).toBe(false);
     expect(needsLanguages({ reviewIgnore: null, presetOverride: ["go"] })).toBe(false);
   });

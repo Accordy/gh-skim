@@ -9,7 +9,8 @@ Public repo; the private hosted App (`Accordy/skim-app`) pins it as a submodule.
 bun install
 bun test
 bun run typecheck
-bun run build        # dist/ binaries + ./gh-skim for `gh extension install ./gh-skim`
+bun run format       # Biome; CI runs format:check, typecheck and test
+bun run build        # dist/ binaries (macOS + Linux) + ./gh-skim for local install
 ```
 
 ## Layout

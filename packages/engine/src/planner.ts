@@ -29,7 +29,10 @@ export function plan(
   sources: PatternSource[],
   reviewThreadPaths: Set<string>,
 ): Plan {
-  const matches = matchPaths(sources, files.map((f) => f.path));
+  const matches = matchPaths(
+    sources,
+    files.map((f) => f.path),
+  );
   const byPath = new Map(matches.map((m) => [m.path, m]));
 
   const matched = files.filter((f) => byPath.get(f.path)?.hidden);

@@ -99,13 +99,19 @@ export class GitHubClient {
     }
   }
 
-  private async query<T>(query: string, variables: Record<string, unknown>, label: string): Promise<T> {
+  private async query<T>(
+    query: string,
+    variables: Record<string, unknown>,
+    label: string,
+  ): Promise<T> {
     const res = await this.requestWithRetry(query, variables, label);
     if (res.body?.errors?.length) {
       throw new Error(`${label} failed: ${JSON.stringify(res.body.errors).slice(0, 400)}`);
     }
     if (!res.body?.data) {
-      throw new Error(`${label} failed: http ${res.status} ${JSON.stringify(res.body).slice(0, 300)}`);
+      throw new Error(
+        `${label} failed: http ${res.status} ${JSON.stringify(res.body).slice(0, 300)}`,
+      );
     }
     return res.body.data as T;
   }
@@ -210,7 +216,9 @@ export class GitHubClient {
       const ra = r.headers.get("retry-after");
       const retryable = r.status === 403 || r.status === 429 || r.status >= 500;
       if (!retryable || attempt >= MAX_RETRIES) {
-        throw new Error(`read ${path} at ${ref} failed: http ${r.status} ${(await r.text()).slice(0, 200)}`);
+        throw new Error(
+          `read ${path} at ${ref} failed: http ${r.status} ${(await r.text()).slice(0, 200)}`,
+        );
       }
       const wait = backoffMs(ra ? Number(ra) : null, attempt);
       this.log(`rate limited on read ${path} (http ${r.status}), waiting ${wait / 1000}s`);
@@ -238,7 +246,9 @@ export class GitHubClient {
   }
 
   /** PRs where the viewer is a requested reviewer, for `watch`. */
-  async searchReviewRequested(limit = 20): Promise<{ owner: string; repo: string; number: number }[]> {
+  async searchReviewRequested(
+    limit = 20,
+  ): Promise<{ owner: string; repo: string; number: number }[]> {
     const data = await this.query<any>(
       `query($q:String!,$n:Int!){
          search(query:$q, type:ISSUE, first:$n){

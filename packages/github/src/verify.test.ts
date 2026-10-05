@@ -13,7 +13,9 @@ describe("mark batch verifier", () => {
   it("reports 4 failures when 80 aliases return 76 successes and 4 errors", () => {
     const slice = paths(80);
     const body = {
-      data: Object.fromEntries(slice.slice(0, 76).map((_, i) => [`a${i}`, { clientMutationId: null }])),
+      data: Object.fromEntries(
+        slice.slice(0, 76).map((_, i) => [`a${i}`, { clientMutationId: null }]),
+      ),
       errors: [76, 77, 78, 79].map((i) => ({
         type: "RESOURCE_LIMITS_EXCEEDED",
         path: [`a${i}`, "clientMutationId"],
@@ -39,7 +41,9 @@ describe("mark batch verifier", () => {
 
   it("fails every path when the response carries no data and no per-alias errors", () => {
     const slice = paths(50);
-    const out = verifyAliasBatch(slice, 403, { message: "You have exceeded a secondary rate limit" });
+    const out = verifyAliasBatch(slice, 403, {
+      message: "You have exceeded a secondary rate limit",
+    });
     expect(out.succeeded).toHaveLength(0);
     expect(out.failed).toHaveLength(50);
     expect(out.failed[0]!.message).toMatch(/http 403/);

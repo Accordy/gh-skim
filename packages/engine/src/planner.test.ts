@@ -38,7 +38,14 @@ describe("plan", () => {
   });
 
   test("skips files already VIEWED — we did not set those and will not claim them", () => {
-    const files = [...snapshots(6), ...snapshots(4).map((f) => ({ ...f, viewerViewedState: "VIEWED" as const, path: f.path + ".dup" }))];
+    const files = [
+      ...snapshots(6),
+      ...snapshots(4).map((f) => ({
+        ...f,
+        viewerViewedState: "VIEWED" as const,
+        path: f.path + ".dup",
+      })),
+    ];
     const p = plan(files, [swift], new Set());
     expect(p.toMark).toHaveLength(6);
     expect(p.skipped.filter((s) => s.reason === "already-viewed")).toHaveLength(4);

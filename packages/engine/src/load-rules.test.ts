@@ -24,7 +24,11 @@ describe("loadRules", () => {
     // contains it, the way .gitignore does.
     const { client, asked } = stubClient({}, ["Swift"]);
     const c = await loadRules(client, "o", "r", "deadbeef", null);
-    expect(asked).toEqual(["deadbeef:.github/review-ignore", "deadbeef:.gitattributes", "languages"]);
+    expect(asked).toEqual([
+      "deadbeef:.github/review-ignore",
+      "deadbeef:.gitattributes",
+      "languages",
+    ]);
     expect(c.presets).toEqual(["swift"]);
   });
 

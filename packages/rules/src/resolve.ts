@@ -33,7 +33,9 @@ export type ResolvedRules = {
  * True when the presets come from the repository's languages, so the caller
  * has to look them up. Lets a caller skip that request when nothing needs it.
  */
-export function needsLanguages(inputs: Pick<RuleInputs, "reviewIgnore" | "presetOverride">): boolean {
+export function needsLanguages(
+  inputs: Pick<RuleInputs, "reviewIgnore" | "presetOverride">,
+): boolean {
   if (inputs.presetOverride && inputs.presetOverride.length) return false;
   if (inputs.reviewIgnore === null) return true;
   return parsePresetDirective(inputs.reviewIgnore).kind === "absent";

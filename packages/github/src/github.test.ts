@@ -62,9 +62,7 @@ describe("per-alias failures under HTTP 200", () => {
    * report far more files marked than it marked.
    */
   test("onBatch only ever receives paths that actually succeeded", async () => {
-    const s = stubFetch([
-      { body: { data: {}, errors: [{ path: ["a1"], message: "nope" }] } },
-    ]);
+    const s = stubFetch([{ body: { data: {}, errors: [{ path: ["a1"], message: "nope" }] } }]);
     restore = s.restore;
     const seen: string[][] = [];
     await new GitHubClient("t").setViewed("PR", paths(3), "mark", (ok) => void seen.push(ok));
@@ -191,10 +189,7 @@ describe("searchReviewRequested", () => {
         body: {
           data: {
             search: {
-              nodes: [
-                { number: 7, repository: { name: "r", owner: { login: "o" } } },
-                {},
-              ],
+              nodes: [{ number: 7, repository: { name: "r", owner: { login: "o" } } }, {}],
             },
           },
         },

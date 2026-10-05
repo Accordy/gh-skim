@@ -66,10 +66,7 @@ describe("matchPaths", () => {
 
     test("dir/ excludes the directory itself, so the ! silently does nothing", () => {
       const r = matchPaths(
-        [
-          src("preset:broken", "Generated/"),
-          src(".github/review-ignore", "!Generated/keep.swift"),
-        ],
+        [src("preset:broken", "Generated/"), src(".github/review-ignore", "!Generated/keep.swift")],
         paths,
       );
       // Both stay hidden: this is the bug the dir/** convention prevents.
@@ -125,10 +122,7 @@ describe("matchPaths", () => {
       const both = matchPaths(
         [
           src("preset:swift", "**/__Snapshots__/**"),
-          src(
-            ".github/review-ignore",
-            "!**/__Snapshots__/Critical\n!**/__Snapshots__/Critical/**",
-          ),
+          src(".github/review-ignore", "!**/__Snapshots__/Critical\n!**/__Snapshots__/Critical/**"),
         ],
         paths,
       );
@@ -165,10 +159,7 @@ describe("matchPaths", () => {
   });
 
   test("attributes the decision to the LAST rule that changed it", () => {
-    const r = matchPaths(
-      [src("a", "**/*.txt\n!keep.txt"), src("b", "keep.txt")],
-      ["keep.txt"],
-    );
+    const r = matchPaths([src("a", "**/*.txt\n!keep.txt"), src("b", "keep.txt")], ["keep.txt"]);
     expect(r[0]!.hidden).toBe(true);
     expect(r[0]!.source).toBe("b");
     expect(r[0]!.rule).toBe("keep.txt");

@@ -10,7 +10,12 @@ describe("reconcileFailures", () => {
     // re-read is never assumed done.
     const out = reconcileFailures(
       [{ path: "1" }, { path: "2" }, { path: "3" }, { path: "4" }, { path: "gone" }],
-      new Map([["1", "VIEWED"], ["2", "UNVIEWED"], ["3", "VIEWED"], ["4", "DISMISSED"]]),
+      new Map([
+        ["1", "VIEWED"],
+        ["2", "UNVIEWED"],
+        ["3", "VIEWED"],
+        ["4", "DISMISSED"],
+      ]),
     );
     expect(out.landed).toEqual(["1", "3"]);
     expect(out.stillTodo).toEqual(["2", "4", "gone"]);
@@ -22,7 +27,12 @@ describe("reconcileFailures", () => {
  * `reportFailed` paths are applied but reported as failed on the first try,
  * the measured GitHub behaviour; `reject` paths really fail every time.
  */
-function stubGitHub(opts: { files: string[]; viewed?: string[]; reportFailed?: string[]; reject?: string[] }) {
+function stubGitHub(opts: {
+  files: string[];
+  viewed?: string[];
+  reportFailed?: string[];
+  reject?: string[];
+}) {
   const viewed = new Set(opts.viewed ?? []);
   const calls: { op: string; paths: string[] }[] = [];
   let first = true;
@@ -36,7 +46,12 @@ function stubGitHub(opts: { files: string[]; viewed?: string[]; reportFailed?: s
         })),
       };
     },
-    async setViewed(_id: string, paths: string[], op: "mark" | "unmark", onBatch?: (ok: string[]) => unknown) {
+    async setViewed(
+      _id: string,
+      paths: string[],
+      op: "mark" | "unmark",
+      onBatch?: (ok: string[]) => unknown,
+    ) {
       calls.push({ op, paths });
       const failed: { path: string; message: string }[] = [];
       const succeeded: string[] = [];
@@ -46,7 +61,8 @@ function stubGitHub(opts: { files: string[]; viewed?: string[]; reportFailed?: s
           continue;
         }
         op === "mark" ? viewed.add(p) : viewed.delete(p);
-        if (op === "mark" && first && opts.reportFailed?.includes(p)) failed.push({ path: p, message: "Resource limits" });
+        if (op === "mark" && first && opts.reportFailed?.includes(p))
+          failed.push({ path: p, message: "Resource limits" });
         else succeeded.push(p);
       }
       first = false;
@@ -96,7 +112,10 @@ describe("markFiles", () => {
 describe("undoMarks", () => {
   test("unmarks recorded paths still viewed, and forgets them and the stale ones", async () => {
     // "mine" was unmarked by the reviewer since; "theirs" they marked by hand.
-    const { client, viewed } = stubGitHub({ files: ["a", "mine", "theirs"], viewed: ["a", "theirs"] });
+    const { client, viewed } = stubGitHub({
+      files: ["a", "mine", "theirs"],
+      viewed: ["a", "theirs"],
+    });
     const store = memoryStore(["a", "mine"]);
     const out = await undoMarks(client, pr, store);
     expect(out).toMatchObject({ recorded: 2, toUndo: 1, stale: 1, succeeded: ["a"] });

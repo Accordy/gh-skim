@@ -53,14 +53,35 @@ function parseFlags(argv: string[]): Flags {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     switch (a) {
-      case "--dry-run": f.dryRun = true; break;
-      case "--undo": f.undo = true; break;
-      case "--verbose": f.verbose = true; break;
-      case "--once": f.once = true; break;
-      case "-h": case "--help": f.help = true; break;
-      case "--rules": f.rules = argv[++i] ?? null; break;
-      case "--preset": f.presets = (argv[++i] ?? "").split(",").map((s) => s.trim()).filter(Boolean); break;
-      case "-R": case "--repo": f.repo = argv[++i] ?? null; break;
+      case "--dry-run":
+        f.dryRun = true;
+        break;
+      case "--undo":
+        f.undo = true;
+        break;
+      case "--verbose":
+        f.verbose = true;
+        break;
+      case "--once":
+        f.once = true;
+        break;
+      case "-h":
+      case "--help":
+        f.help = true;
+        break;
+      case "--rules":
+        f.rules = argv[++i] ?? null;
+        break;
+      case "--preset":
+        f.presets = (argv[++i] ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        break;
+      case "-R":
+      case "--repo":
+        f.repo = argv[++i] ?? null;
+        break;
       case "--interval": {
         const n = Number(argv[++i]);
         if (!(n > 0)) throw new Error("--interval needs a number of minutes above 0");
@@ -88,7 +109,15 @@ function token(): string {
 
 /** `gh repo view` when the PR was given as a bare number and no -R was passed. */
 function repoFromCwd(): string | undefined {
-  const r = Bun.spawnSync(["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"]);
+  const r = Bun.spawnSync([
+    "gh",
+    "repo",
+    "view",
+    "--json",
+    "nameWithOwner",
+    "-q",
+    ".nameWithOwner",
+  ]);
   const s = new TextDecoder().decode(r.stdout).trim();
   return s || undefined;
 }
@@ -130,13 +159,7 @@ async function runOne(target: Target, flags: Flags, log: (s: string) => void): P
 
   const pr = await client.getPullRequest(target.owner, target.repo, target.number);
 
-  const config = await loadRules(
-    client,
-    target.owner,
-    target.repo,
-    pr.headRefOid,
-    flags.presets,
-  );
+  const config = await loadRules(client, target.owner, target.repo, pr.headRefOid, flags.presets);
 
   // A local rules file is the last, highest-precedence source, so it can both
   // add rules and `!` un-hide what the repo or preset hides. It lets you try
@@ -144,7 +167,10 @@ async function runOne(target: Target, flags: Flags, log: (s: string) => void): P
   const rulesPath = flags.rules ?? (await localRulesFor(target.owner, target.repo));
   if (rulesPath) {
     const text = await Bun.file(rulesPath).text();
-    config.sources.push({ name: rulesPath.replace(process.env.HOME ?? "~", "~"), patterns: parsePatterns(text) });
+    config.sources.push({
+      name: rulesPath.replace(process.env.HOME ?? "~", "~"),
+      patterns: parsePatterns(text),
+    });
   }
 
   const p = plan(pr.files, config.sources, pr.reviewThreadPaths);
@@ -154,7 +180,9 @@ async function runOne(target: Target, flags: Flags, log: (s: string) => void): P
     `${label}: ${pr.files.length} files changed. ` +
       `presets ${presetLabel} (${config.presetOrigin})` +
       (config.hasReviewIgnore ? ", .github/review-ignore from this branch" : "") +
-      (config.linguistPatterns.length ? `, ${config.linguistPatterns.length} linguist-generated rules` : ""),
+      (config.linguistPatterns.length
+        ? `, ${config.linguistPatterns.length} linguist-generated rules`
+        : ""),
   );
 
   const groups = groupByRule(p.matches);
@@ -167,7 +195,8 @@ async function runOne(target: Target, flags: Flags, log: (s: string) => void): P
 
   const skippedThreads = p.skipped.filter((s) => s.reason === "has-review-thread");
   const skippedViewed = p.skipped.filter((s) => s.reason === "already-viewed");
-  if (skippedThreads.length) log(`  skipping ${skippedThreads.length} file(s) with review comments`);
+  if (skippedThreads.length)
+    log(`  skipping ${skippedThreads.length} file(s) with review comments`);
   if (skippedViewed.length) log(`  skipping ${skippedViewed.length} file(s) already marked viewed`);
 
   if (p.allNoise) {

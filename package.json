@@ -8,9 +8,12 @@
   "scripts": {
     "test": "bun test",
     "build": "bun run packages/cli/build.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "biome format --write",
+    "format:check": "biome format"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@types/bun": "latest",
     "typescript": "^5.6.0"
   },

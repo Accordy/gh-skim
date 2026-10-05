@@ -95,7 +95,9 @@ describe("linguist-generated in .gitattributes", () => {
 
 describe("preset contents", () => {
   const hidden = (preset: string, paths: string[]) =>
-    matchPaths(presetSources([preset]), paths).filter((m) => m.hidden).map((m) => m.path);
+    matchPaths(presetSources([preset]), paths)
+      .filter((m) => m.hidden)
+      .map((m) => m.path);
 
   test("jvm hides the Gradle wrapper and locks, but not the wrapper version", () => {
     expect(
@@ -137,6 +139,10 @@ describe("preset contents", () => {
         "bin/deploy.sh",
         "src/Data/Migrations/20260101_AddUsers.cs",
       ]),
-    ).toEqual(["src/App/packages.lock.json", "src/App/Form1.Designer.cs", "src/App/obj/project.assets.json"]);
+    ).toEqual([
+      "src/App/packages.lock.json",
+      "src/App/Form1.Designer.cs",
+      "src/App/obj/project.assets.json",
+    ]);
   });
 });

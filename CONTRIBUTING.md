@@ -22,7 +22,11 @@ file in [`packages/rules/presets/`](packages/rules/presets).
 ```sh
 bun install
 bun test
+bun run typecheck
+bun run format
 ```
+
+CI runs the tests, the typecheck and `bun run format:check` on every pull request.
 
 `packages/rules` stays pure: no network, no file system. Anything that talks to
 GitHub goes in `packages/github`, and the flow that combines them in

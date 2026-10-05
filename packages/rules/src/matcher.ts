@@ -52,9 +52,7 @@ export function matchPaths(sources: PatternSource[], paths: string[]): MatchResu
 
   // Cumulative prefix matchers, built once and reused for every path.
   // prefixes[i] holds rules[0..i].
-  const prefixes = rules.map((_, i) =>
-    ignore().add(rules.slice(0, i + 1).map((r) => r.pattern)),
-  );
+  const prefixes = rules.map((_, i) => ignore().add(rules.slice(0, i + 1).map((r) => r.pattern)));
   const all = prefixes.length ? prefixes[prefixes.length - 1]! : ignore();
 
   return paths.map((path) => {
