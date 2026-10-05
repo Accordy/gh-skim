@@ -15,3 +15,5 @@ jobs:
       - run: bun run format:check
       - run: bun run typecheck
       - run: bun test
+      # Builds every release binary and runs the one native to the runner (linux-amd64).
+      - run: bun run build && ./gh-skim/gh-skim --help
