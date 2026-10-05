@@ -1,5 +1,4 @@
 import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
-import { existsSync, renameSync } from "node:fs";
 import { dirname } from "node:path";
 import { homedir } from "node:os";
 import type { MarkStore } from "@skim/engine";
@@ -24,17 +23,9 @@ export type Ledger = {
   entries: LedgerEntry[];
 };
 
-/**
- * ~/.config/gh-skim, holding personal rules and the ledgers. The tool used to be
- * gh-review-filter; its directory is moved here the first time, so undo still
- * finds marks made before the rename.
- */
+/** ~/.config/gh-skim, holding personal rules and the ledgers. */
 export function configDir(): string {
-  const base = process.env.XDG_CONFIG_HOME ?? `${homedir()}/.config`;
-  const dir = `${base}/gh-skim`;
-  const legacy = `${base}/gh-review-filter`;
-  if (!existsSync(dir) && existsSync(legacy)) renameSync(legacy, dir);
-  return dir;
+  return `${process.env.XDG_CONFIG_HOME ?? `${homedir()}/.config`}/gh-skim`;
 }
 
 export function ledgerPath(owner: string, repo: string, pr: number, root?: string): string {

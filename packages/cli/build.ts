@@ -1,9 +1,9 @@
 /**
- * Build the precompiled gh extension binaries.
+ * Build the precompiled gh extension binaries, cross-compiled from any host.
  *
- * gh looks for `gh-<name>-<os>-<arch>` using GOARCH names, so the Intel asset
- * has to be `amd64`, not `x64`. Naming it x64 gives Intel Macs
- * "no compatible binary found".
+ * gh looks for `gh-<name>-<os>-<arch>` using GOARCH names, so the x86 assets
+ * have to be `amd64`, not `x64`. Naming them x64 gives "no compatible binary
+ * found".
  *
  * Also produces ./gh-skim/gh-skim for
  * `gh extension install ./gh-skim` during development.
@@ -16,6 +16,8 @@ const entry = `${root}packages/cli/src/index.ts`;
 const TARGETS: { target: string; asset: string }[] = [
   { target: "bun-darwin-arm64", asset: "gh-skim-darwin-arm64" },
   { target: "bun-darwin-x64", asset: "gh-skim-darwin-amd64" },
+  { target: "bun-linux-arm64", asset: "gh-skim-linux-arm64" },
+  { target: "bun-linux-x64", asset: "gh-skim-linux-amd64" },
 ];
 
 await mkdir(`${root}dist`, { recursive: true });
@@ -43,7 +45,8 @@ for (const { target, asset } of TARGETS) {
 // Local install target for `gh extension install ./gh-skim`.
 const localDir = `${root}gh-skim`;
 await mkdir(localDir, { recursive: true });
-const native = process.arch === "arm64" ? "darwin-arm64" : "darwin-amd64";
+const os = process.platform === "linux" ? "linux" : "darwin";
+const native = `${os}-${process.arch === "arm64" ? "arm64" : "amd64"}`;
 await copyFile(`${root}dist/gh-skim-${native}`, `${localDir}/gh-skim`);
 await chmod(`${localDir}/gh-skim`, 0o755);
 console.log(`local extension ready: ${localDir}/gh-skim`);

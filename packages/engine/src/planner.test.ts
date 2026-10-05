@@ -3,12 +3,10 @@ import { plan } from "./planner.ts";
 import { parsePatterns, type PatternSource } from "@skim/rules";
 import type { ChangedFile, FileViewedState } from "@skim/github";
 
-const file = (
-  path: string,
-  viewerViewedState: FileViewedState = "UNVIEWED",
-  additions = 1,
-  deletions = 1,
-): ChangedFile => ({ path, changeType: "MODIFIED", additions, deletions, viewerViewedState });
+const file = (path: string, viewerViewedState: FileViewedState = "UNVIEWED"): ChangedFile => ({
+  path,
+  viewerViewedState,
+});
 
 const snapshots = (n: number, state: FileViewedState = "UNVIEWED") =>
   Array.from({ length: n }, (_, i) => file(`Tests/__Snapshots__/T/case${i}.txt`, state));

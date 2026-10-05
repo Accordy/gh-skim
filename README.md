@@ -19,7 +19,7 @@ You need the [GitHub CLI](https://cli.github.com), logged in with `gh auth login
 gh extension install Accordy/gh-skim
 ```
 
-Runs on macOS, Apple silicon and Intel. To update later:
+Runs on macOS and Linux, on Apple silicon/ARM and Intel/AMD. To update later:
 
 ```sh
 gh extension upgrade skim
@@ -176,11 +176,11 @@ above it:
 | [`packages/engine`](packages/engine) | The flow: load rules for a pull request, plan, mark, reconcile what GitHub reported, record, undo. Where marks are recorded is passed in |
 | [`packages/cli`](packages/cli) | `gh skim`. Records marks in `~/.config/gh-skim` |
 
-To release, build and attach both binaries. `gh` looks for exactly these names:
+To release, build and attach all four binaries. `gh` looks for exactly these names:
 
 ```sh
 bun run build
-gh release create vX.Y.Z dist/gh-skim-darwin-arm64 dist/gh-skim-darwin-amd64
+gh release create vX.Y.Z dist/gh-skim-*
 ```
 
 ## Contributing

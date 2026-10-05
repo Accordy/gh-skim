@@ -145,9 +145,6 @@ describe("pagination", () => {
                 pageInfo: { hasNextPage: hasNext, endCursor: cursor },
                 nodes: Array.from({ length: n }, (_, i) => ({
                   path: `p${cursor ?? "last"}${i}.txt`,
-                  changeType: "MODIFIED",
-                  additions: 1,
-                  deletions: 1,
                   viewerViewedState: "UNVIEWED",
                 })),
               },

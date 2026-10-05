@@ -29,9 +29,6 @@ export type FileViewedState = "VIEWED" | "UNVIEWED" | "DISMISSED";
 
 export type ChangedFile = {
   path: string;
-  changeType: string;
-  additions: number;
-  deletions: number;
   viewerViewedState: FileViewedState;
 };
 
@@ -142,7 +139,7 @@ export class GitHubClient {
                id headRefOid
                files(first:100, after:$cursor){
                  pageInfo{ hasNextPage endCursor }
-                 nodes{ path changeType additions deletions ${viewedField} }
+                 nodes{ path ${viewedField} }
                }
              }
            }
