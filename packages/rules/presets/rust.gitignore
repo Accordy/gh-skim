@@ -1,0 +1,10 @@
+# Rust preset for gh skim.
+
+# Resolved by Cargo from Cargo.toml, which is reviewed.
+**/Cargo.lock
+
+# Crates vendored with `cargo vendor`. A verbatim copy of upstream.
+**/vendor/**
+
+# Build output. Should not be committed, sometimes is.
+**/target/**

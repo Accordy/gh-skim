@@ -1,0 +1,5 @@
+# preset: swift
+# One snapshot directory really is reviewed by hand, so pull it back out.
+# Un-ignoring a subdirectory takes both lines: the directory, then its contents.
+!**/__Snapshots__/ChallengeTests
+!**/__Snapshots__/ChallengeTests/**

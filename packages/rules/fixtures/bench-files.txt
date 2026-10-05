@@ -1,0 +1,8 @@
+Sources/App/Analytics.swift
+Sources/App/AuthService.swift
+Sources/App/HomeView.swift
+Sources/App/Generated/API.generated.swift
+Tests/AppTests/__Snapshots__/HomeViewTests/testHome.light.iPhone15.1.txt
+Tests/AppTests/__Snapshots__/HomeViewTests/testHome.dark.iPadPro.2.txt
+Tests/AppTests/__Snapshots__/ChallengeTests/testChallenge.light.iPhone15.1.txt
+Package.resolved

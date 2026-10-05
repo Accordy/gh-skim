@@ -1,0 +1,23 @@
+# Swift preset for gh skim.
+# Every pattern here has to survive one question: would you defend hiding this
+# file in a review comment? If not, it does not belong in the preset.
+
+# Snapshot-test baselines. Re-recorded in bulk by the test run. The artefact
+# under review is the rendering, not the text; the text diff carries nothing a
+# reviewer can act on.
+**/__Snapshots__/**
+
+# Resolved dependency graphs. Written by the package manager from a manifest
+# that IS reviewed. A human reading this diff cannot verify it; CI can.
+**/Package.resolved
+**/Podfile.lock
+**/Cartfile.resolved
+
+# Code-generator output. The generator input is reviewed; this is its exhaust.
+**/*.generated.swift
+**/*.pb.swift
+**/Generated/**
+
+# Per-user Xcode state. Should not be committed at all, and never carries
+# anything worth reading.
+**/xcuserdata/**

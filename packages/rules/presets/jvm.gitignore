@@ -1,0 +1,19 @@
+# Kotlin / Java / Scala preset for gh skim.
+
+# The Gradle wrapper. A binary jar and two launcher scripts that `gradle
+# wrapper` writes; the version bump worth reading is in
+# gradle-wrapper.properties, which stays visible.
+**/gradle/wrapper/gradle-wrapper.jar
+**/gradlew
+**/gradlew.bat
+
+# Dependency locks and checksums, resolved by Gradle from build files that ARE
+# reviewed.
+**/gradle.lockfile
+**/buildscript-gradle.lockfile
+**/gradle/verification-metadata.xml
+
+# Build output, including generated sources. Should not be committed,
+# sometimes is.
+**/build/**
+**/target/**

@@ -1,0 +1,23 @@
+# Node / TypeScript preset for gh skim.
+
+# Lock files. Machine-resolved, thousands of lines, and the thing a reviewer
+# actually cares about is the manifest change that caused them.
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
+**/bun.lockb
+**/bun.lock
+
+# Build output. Should not be committed, frequently is.
+**/dist/**
+**/build/**
+**/.next/**
+**/coverage/**
+
+# Generated clients and types, e.g. GraphQL codegen and OpenAPI generators.
+**/__generated__/**
+**/*.generated.ts
+**/*.generated.js
+
+# Jest and Vitest snapshot baselines.
+**/__snapshots__/**

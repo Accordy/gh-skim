@@ -1,0 +1,5 @@
+node_modules/
+dist/
+gh-skim/
+*.bun-build
+*.log

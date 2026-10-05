@@ -1,0 +1,15 @@
+# Go preset for gh skim.
+
+# Vendored dependencies. A verbatim copy of upstream; the reviewable change is
+# in go.mod.
+**/vendor/**
+
+# Checksum database, not prose.
+**/go.sum
+
+# Generated protobuf, gRPC gateway and mock code.
+**/*.pb.go
+**/*.pb.gw.go
+**/*_grpc.pb.go
+**/mock_*.go
+**/zz_generated_*.go

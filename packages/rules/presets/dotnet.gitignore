@@ -1,0 +1,18 @@
+# .NET / C# preset for gh skim.
+
+# NuGet lock files, resolved from project files that are reviewed.
+**/packages.lock.json
+
+# Designer and source-generator output. The .resx, .xaml or attribute that
+# produced it is what gets reviewed.
+**/*.Designer.cs
+**/*.g.cs
+**/*.g.i.cs
+
+# Intermediate build output. Should not be committed, sometimes is. bin/ is
+# left out on purpose: plenty of repositories keep hand-written scripts there.
+**/obj/**
+
+# Note: Entity Framework migrations are deliberately NOT here, except for their
+# .Designer.cs metadata above. The migration itself can drop a column, and
+# someone has to read that.

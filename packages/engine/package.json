@@ -1,0 +1,11 @@
+{
+  "name": "@skim/engine",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@skim/github": "workspace:*",
+    "@skim/rules": "workspace:*"
+  },
+  "license": "MIT"
+}

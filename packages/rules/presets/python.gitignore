@@ -1,0 +1,17 @@
+# Python preset for gh skim.
+
+# Lock files resolved by the tool, not written by hand.
+**/poetry.lock
+**/Pipfile.lock
+**/uv.lock
+
+# Generated protobuf and gRPC stubs.
+**/*_pb2.py
+**/*_pb2.pyi
+**/*_pb2_grpc.py
+
+# Caches and compiled artefacts that occasionally get committed.
+**/__pycache__/**
+
+# Note: database migrations are deliberately NOT here. They are generated, but
+# they can drop columns, and someone has to read that.

@@ -1,0 +1,7 @@
+{
+  "name": "@skim/github",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "license": "MIT"
+}
