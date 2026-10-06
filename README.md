@@ -52,6 +52,7 @@ leave the list altogether.
 | `gh skim <pr> --dry-run` | Show what it would hide, change nothing |
 | `gh skim <pr> --undo` | Put back everything it marked on that pull request |
 | `gh skim <pr> --verbose` | List every hidden path and the rule that hid it |
+| `gh skim <pr> --mine` | Also hide the files CODEOWNERS gives to someone else |
 | `gh skim 123 -R owner/repo` | Use a bare number instead of a URL |
 
 `<pr>` can be a URL, `owner/repo#123`, or a number when you're inside a clone.
@@ -118,6 +119,24 @@ api/generated/**/*.ts
 
 Writing `api/generated/**` instead would hide the folders too, and the `!` line
 would do nothing.
+
+### Only the files you own
+
+In a repository with a CODEOWNERS file, `--mine` also hides the files it gives
+to someone else, so you see your part of a pull request. To do that for
+everyone, on every run, add this line to `.github/review-ignore`:
+
+```gitignore
+# codeowners: on
+```
+
+- Files nobody owns stay visible.
+- If you own none of the changed files, nothing extra is hidden: you were
+  asked to review for some other reason.
+- CODEOWNERS is read from the base branch, as GitHub does, so a pull request
+  can't reassign its own files.
+- Ownership through a team needs your token to read the organization's teams
+  (`read:org`, which `gh auth login` grants by default).
 
 ### Built-in presets
 

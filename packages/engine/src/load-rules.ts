@@ -1,5 +1,14 @@
 import type { GitHubClient } from "@skim/github";
-import { needsLanguages, resolveRules, REVIEW_IGNORE_PATH, type ResolvedRules } from "@skim/rules";
+import {
+  CODEOWNERS_PATHS,
+  identitiesFor,
+  needsLanguages,
+  parseCodeowners,
+  resolveRules,
+  REVIEW_IGNORE_PATH,
+  type Codeowners,
+  type ResolvedRules,
+} from "@skim/rules";
 
 /**
  * Read the config files for a PR from GitHub and resolve them into rules.
@@ -26,4 +35,44 @@ export async function loadRules(
     ? await client.getLanguages(owner, repo)
     : [];
   return resolveRules({ reviewIgnore, gitattributes, presetOverride, languages });
+}
+
+/**
+ * The repository's CODEOWNERS, from the first place GitHub looks, or null.
+ * Pass the base branch, as GitHub does: read from the head, a pull request
+ * could reassign its own files and hide them from their owners.
+ */
+export async function loadCodeowners(
+  client: GitHubClient,
+  owner: string,
+  repo: string,
+  baseRef: string,
+): Promise<{ path: string; codeowners: Codeowners } | null> {
+  for (const path of CODEOWNERS_PATHS) {
+    const text = await client.getFileAtRef(owner, repo, baseRef, path);
+    if (text !== null) return { path, codeowners: parseCodeowners(text) };
+  }
+  return null;
+}
+
+/**
+ * How a reviewer is named in CODEOWNERS: their login, and their teams in the
+ * organizations that own files through a team. A team list that cannot be read
+ * is left out and reported, so team-owned files stay visible to them.
+ */
+export async function reviewerIdentities(
+  client: GitHubClient,
+  login: string,
+  codeowners: Codeowners,
+): Promise<{ identities: Set<string>; teamsUnreadable: string[] }> {
+  const teams: { org: string; slug: string }[] = [];
+  const teamsUnreadable: string[] = [];
+  for (const org of codeowners.teamOrgs) {
+    try {
+      for (const slug of await client.teamsOf(org, login)) teams.push({ org, slug });
+    } catch {
+      teamsUnreadable.push(org);
+    }
+  }
+  return { identities: identitiesFor(login, teams), teamsUnreadable };
 }

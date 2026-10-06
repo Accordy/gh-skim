@@ -1,5 +1,13 @@
 #!/usr/bin/env bun
-import { loadRules, markFiles, plan, undoMarks } from "@skim/engine";
+import {
+  loadCodeowners,
+  loadRules,
+  markFiles,
+  ownershipMarks,
+  plan,
+  reviewerIdentities,
+  undoMarks,
+} from "@skim/engine";
 import { GitHubClient, parseTarget, type Target } from "@skim/github";
 import { groupByRule, parsePatterns } from "@skim/rules";
 import { configDir, ledgerPath, ledgerStore } from "./ledger.ts";
@@ -18,6 +26,9 @@ Options
   -R, --repo O/R       repository, when the PR is given as a bare number
   --interval N         watch: minutes between polls (default 5)
   --once               watch: one pass, then exit
+  --mine               also hide files CODEOWNERS gives to someone else
+                       (on for every run in repos whose review-ignore says
+                       "# codeowners: on")
   --verbose            list every path and the rule that hid it
   -h, --help           this text
 
@@ -33,6 +44,7 @@ type Flags = {
   interval: number;
   once: boolean;
   verbose: boolean;
+  mine: boolean;
   help: boolean;
   positional: string[];
 };
@@ -47,6 +59,7 @@ function parseFlags(argv: string[]): Flags {
     interval: 5,
     once: false,
     verbose: false,
+    mine: false,
     help: false,
     positional: [],
   };
@@ -61,6 +74,9 @@ function parseFlags(argv: string[]): Flags {
         break;
       case "--verbose":
         f.verbose = true;
+        break;
+      case "--mine":
+        f.mine = true;
         break;
       case "--once":
         f.once = true;
@@ -185,7 +201,38 @@ async function runOne(target: Target, flags: Flags, log: (s: string) => void): P
         : ""),
   );
 
+  // Files someone else owns, on top of the noise. Kept separate from the plan
+  // because they depend on who is running it, not only on the rules.
+  let ownerMarks: string[] = [];
+  let ownerRule = "";
+  if (flags.mine || config.ownersOnly) {
+    const found = await loadCodeowners(client, target.owner, target.repo, pr.baseRefName);
+    if (!found) {
+      log("  no CODEOWNERS file, so nothing is hidden by owner");
+    } else {
+      const me = (await client.viewer()).login;
+      const who = await reviewerIdentities(client, me, found.codeowners);
+      for (const org of who.teamsUnreadable) {
+        log(`  could not read your teams in ${org} (needs read:org); their files stay visible`);
+      }
+      const noise = new Set(p.matches.filter((m) => m.hidden).map((m) => m.path));
+      const marks = ownershipMarks(
+        pr.files,
+        found.codeowners,
+        who.identities,
+        pr.reviewThreadPaths,
+      );
+      if (marks === null) {
+        log(`  you own none of these files in ${found.path}, so nothing is hidden by owner`);
+      } else {
+        ownerMarks = marks.filter((path) => !noise.has(path));
+        ownerRule = `${found.path}: owned by others`;
+      }
+    }
+  }
+
   const groups = groupByRule(p.matches);
+  if (ownerMarks.length) groups.set(ownerRule, ownerMarks);
   const matchedCount = p.matches.filter((m) => m.hidden).length;
 
   for (const [rule, paths] of [...groups].sort((a, b) => b[1].length - a[1].length)) {
@@ -202,20 +249,26 @@ async function runOne(target: Target, flags: Flags, log: (s: string) => void): P
   if (p.allNoise) {
     log(`all ${pr.files.length} files matched ${presetLabel}, nothing left to review`);
   } else {
-    log(`${matchedCount} matched, ${p.remaining} left to review`);
+    log(
+      `${matchedCount} matched` +
+        (ownerMarks.length ? `, ${ownerMarks.length} owned by others` : "") +
+        `, ${p.remaining - ownerMarks.length} left to review`,
+    );
   }
 
+  const toMark = [...p.toMark, ...ownerMarks];
   if (flags.dryRun) {
-    log(`dry run: would mark ${p.toMark.length} file(s). Nothing changed.`);
+    log(`dry run: would mark ${toMark.length} file(s). Nothing changed.`);
     return 0;
   }
 
-  if (p.toMark.length === 0) {
+  if (toMark.length === 0) {
     log("nothing to mark");
     return 0;
   }
 
   const ruleByPath = new Map(p.matches.map((m) => [m.path, m.rule]));
+  for (const path of ownerMarks) ruleByPath.set(path, ownerRule);
   // Recorded per batch: a crash halfway leaves an accurate partial record.
   const store = await ledgerStore(target.owner, target.repo, target.number, {
     sha: pr.headRefOid,
@@ -223,7 +276,7 @@ async function runOne(target: Target, flags: Flags, log: (s: string) => void): P
   });
   const started = Date.now();
 
-  const out = await markFiles(client, target, pr.id, p.toMark, store);
+  const out = await markFiles(client, target, pr.id, toMark, store);
 
   const secs = ((Date.now() - started) / 1000).toFixed(1);
   log(`marked ${out.succeeded.length} file(s) viewed in ${secs}s`);

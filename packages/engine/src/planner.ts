@@ -1,4 +1,10 @@
-import { matchPaths, type MatchResult, type PatternSource } from "@skim/rules";
+import {
+  matchPaths,
+  ownedByOthers,
+  type Codeowners,
+  type MatchResult,
+  type PatternSource,
+} from "@skim/rules";
 import type { ChangedFile } from "@skim/github";
 
 export type SkipReason = "already-viewed" | "has-review-thread";
@@ -64,4 +70,26 @@ export function plan(
     remaining,
     allNoise,
   };
+}
+
+/**
+ * With `# codeowners: on`, the files someone else owns, to mark for one
+ * reviewer on top of the noise. The same rules as noise apply: never a file
+ * with a review thread, never one already VIEWED. Null when the reviewer owns
+ * none of the files, so nothing extra is hidden from them.
+ */
+export function ownershipMarks(
+  files: ChangedFile[],
+  codeowners: Codeowners,
+  identities: Set<string>,
+  reviewThreadPaths: Set<string>,
+): string[] | null {
+  const others = ownedByOthers(
+    codeowners,
+    files.map((f) => f.path),
+    identities,
+  );
+  if (others === null) return null;
+  const viewed = new Set(files.filter((f) => f.viewerViewedState === "VIEWED").map((f) => f.path));
+  return others.filter((p) => !reviewThreadPaths.has(p) && !viewed.has(p));
 }

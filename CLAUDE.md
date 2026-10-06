@@ -30,6 +30,8 @@ The App uses `rules`, `github` and `engine`; changing their exports breaks it.
   response's `errors[]` is read per alias, since overflow still returns HTTP 200.
 - Reported mark failures are re-read before retrying: GitHub sometimes applies a mark it reports as failed.
 - Never touch a file with a review thread or one the reviewer already marked viewed.
+- CODEOWNERS is read from the base branch, never the head. A reviewer who owns
+  none of the changed files gets nothing hidden by owner.
 - Undo only reverses what the ledger recorded.
 - Precedence, lowest first: presets, `linguist-generated`, `.github/review-ignore`, personal rules.
 - Preset directory patterns use `dir/**`, never `dir/`, or `!` cannot re-include files.

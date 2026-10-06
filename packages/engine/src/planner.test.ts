@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { plan } from "./planner.ts";
-import { parsePatterns, type PatternSource } from "@skim/rules";
+import { ownershipMarks, plan } from "./planner.ts";
+import { identitiesFor, parseCodeowners, parsePatterns, type PatternSource } from "@skim/rules";
 import type { ChangedFile, FileViewedState } from "@skim/github";
 
 const file = (path: string, viewerViewedState: FileViewedState = "UNVIEWED"): ChangedFile => ({
@@ -68,5 +68,25 @@ describe("plan", () => {
     const p = plan([file("Sources/App/Home.swift")], [swift], new Set());
     expect(p.allNoise).toBe(false);
     expect(p.toMark).toEqual([]);
+  });
+});
+
+describe("ownershipMarks", () => {
+  const owners = parseCodeowners("/ios/ @amy\n/web/ @bob\n");
+
+  test("hides others' files under the same rules as noise", () => {
+    const files = [
+      file("ios/A.swift"),
+      file("web/a.ts"),
+      file("web/b.ts", "VIEWED"),
+      file("web/c.ts"),
+      file("web/d.ts", "DISMISSED"),
+    ];
+    const marks = ownershipMarks(files, owners, identitiesFor("amy"), new Set(["web/c.ts"]));
+    expect(marks).toEqual(["web/a.ts", "web/d.ts"]);
+  });
+
+  test("hides nothing extra from a reviewer who owns none of the files", () => {
+    expect(ownershipMarks([file("web/a.ts")], owners, identitiesFor("amy"), new Set())).toBeNull();
   });
 });

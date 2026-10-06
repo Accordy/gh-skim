@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { GitHubClient } from "@skim/github";
-import { loadRules } from "./load-rules.ts";
+import { loadCodeowners, loadRules, reviewerIdentities } from "./load-rules.ts";
+import { parseCodeowners } from "@skim/rules";
 
 /** Stand-in for GitHubClient: serves files from a map and records what was asked for. */
 function stubClient(files: Record<string, string>, languages: string[] = []) {
@@ -37,5 +38,28 @@ describe("loadRules", () => {
     const c = await loadRules(client, "o", "r", "main", null);
     expect(asked).not.toContain("languages");
     expect(c.presetOrigin).toBe("directive");
+  });
+});
+
+describe("CODEOWNERS", () => {
+  test("is read from the first place GitHub looks that has one", async () => {
+    const { client, asked } = stubClient({ CODEOWNERS: "* @amy", "docs/CODEOWNERS": "* @bob" });
+    const found = await loadCodeowners(client, "o", "r", "main");
+    expect(found?.path).toBe("CODEOWNERS");
+    expect(found?.codeowners.ownersOf("x")).toEqual(["@amy"]);
+    expect(asked).toEqual(["main:.github/CODEOWNERS", "main:CODEOWNERS"]);
+  });
+
+  test("a reviewer's teams count, and an unreadable team list is reported, not fatal", async () => {
+    const codeowners = parseCodeowners("/a/ @acme/web\n/b/ @other/ops\n");
+    const client = {
+      async teamsOf(org: string) {
+        if (org === "other") throw new Error("Resource not accessible by integration");
+        return ["web"];
+      },
+    } as unknown as GitHubClient;
+    const { identities, teamsUnreadable } = await reviewerIdentities(client, "Amy", codeowners);
+    expect([...identities]).toEqual(["@amy", "@acme/web"]);
+    expect(teamsUnreadable).toEqual(["other"]);
   });
 });

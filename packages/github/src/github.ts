@@ -81,6 +81,8 @@ export type ChangedFile = {
 export type PullRequestInfo = {
   id: string;
   headRefOid: string;
+  /** Where CODEOWNERS is read from, as GitHub does, so a pull request cannot reassign its own files. */
+  baseRefName: string;
   files: ChangedFile[];
   /** Paths that already carry review threads; never touched. */
   reviewThreadPaths: Set<string>;
@@ -177,13 +179,14 @@ export class GitHubClient {
     let cursor: string | null = null;
     let id = "";
     let headRefOid = "";
+    let baseRefName = "";
 
     for (;;) {
       const data: any = await this.query<any>(
         `query($owner:String!,$repo:String!,$pr:Int!,$cursor:String){
            repository(owner:$owner,name:$repo){
              pullRequest(number:$pr){
-               id headRefOid
+               id headRefOid baseRefName
                files(first:100, after:$cursor){
                  pageInfo{ hasNextPage endCursor }
                  nodes{ path ${viewedField} }
@@ -198,6 +201,7 @@ export class GitHubClient {
       if (!p) throw new Error(`${owner}/${repo}#${number} not found, or no access to it`);
       id = p.id;
       headRefOid = p.headRefOid;
+      baseRefName = p.baseRefName;
       for (const n of p.files.nodes) {
         files.push({ viewerViewedState: "UNVIEWED", ...n });
       }
@@ -228,7 +232,7 @@ export class GitHubClient {
       tCursor = t.pageInfo.endCursor;
     }
 
-    return { id, headRefOid, files, reviewThreadPaths };
+    return { id, headRefOid, baseRefName, files, reviewThreadPaths };
   }
 
   /** A text file from a ref, or null when it does not exist. */
@@ -293,6 +297,22 @@ export class GitHubClient {
       "repository languages",
     );
     return (data.repository?.languages?.nodes ?? []).map((n: any) => n.name);
+  }
+
+  /**
+   * The slugs of the teams in `org` that `login` belongs to. Needs read access
+   * to the organization's members: `read:org` for a person's token, the
+   * Members permission for a GitHub App.
+   */
+  async teamsOf(org: string, login: string): Promise<string[]> {
+    const data = await this.query<any>(
+      `query($org:String!,$login:String!){
+         organization(login:$org){ teams(first:100, userLogins:[$login]){ nodes{ slug } } }
+       }`,
+      { org, login },
+      "team memberships",
+    );
+    return (data.organization?.teams?.nodes ?? []).map((n: any) => n.slug);
   }
 
   /** PRs where the viewer is a requested reviewer, for `watch`. */

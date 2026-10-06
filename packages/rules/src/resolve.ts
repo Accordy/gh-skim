@@ -1,3 +1,4 @@
+import { parseCodeownersDirective } from "./codeowners.ts";
 import { parsePatterns, type PatternSource } from "./matcher.ts";
 import {
   detectPresets,
@@ -27,6 +28,8 @@ export type ResolvedRules = {
   presetOrigin: "flag" | "directive" | "detected" | "none";
   hasReviewIgnore: boolean;
   linguistPatterns: string[];
+  /** `# codeowners: on`: each reviewer is shown only the files they own. */
+  ownersOnly: boolean;
 };
 
 /**
@@ -91,5 +94,6 @@ export function resolveRules(inputs: RuleInputs): ResolvedRules {
     presetOrigin,
     hasReviewIgnore: reviewIgnore !== null,
     linguistPatterns,
+    ownersOnly: parseCodeownersDirective(reviewIgnore),
   };
 }
