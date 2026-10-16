@@ -24,6 +24,8 @@ bun install
 bun test
 bun run typecheck
 bun run format
+bun run build                  # dist/ binaries and ./gh-skim
+gh extension install ./gh-skim # try your build
 ```
 
 CI runs the tests, the typecheck and `bun run format:check` on every pull request.

@@ -13,6 +13,11 @@ bun run format       # Biome; CI runs format:check, typecheck and test
 bun run build        # dist/ binaries (macOS + Linux) + ./gh-skim for local install
 ```
 
+## Release
+
+`bun run build`, then `gh release create vX.Y.Z dist/gh-skim-*`. `gh` needs all
+four binaries under exactly those names.
+
 ## Layout
 
 Each package depends only on the ones above it.
