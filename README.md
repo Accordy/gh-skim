@@ -53,6 +53,7 @@ leave the list altogether.
 | `gh skim <pr> --undo` | Put back everything it marked on that pull request |
 | `gh skim <pr> --verbose` | List every hidden path and the rule that hid it |
 | `gh skim <pr> --mine` | Also hide the files CODEOWNERS gives to someone else |
+| `gh skim <pr> --preset node,go` | Use these presets instead of detecting them |
 | `gh skim 123 -R owner/repo` | Use a bare number instead of a URL |
 
 `<pr>` can be a URL, `owner/repo#123`, or a number when you're inside a clone.
@@ -66,6 +67,7 @@ review it's already done.
 ```sh
 gh skim watch            # keep running, poll every 5 minutes
 gh skim watch --once     # one pass, then exit
+gh skim watch --interval 15  # poll every 15 minutes
 gh skim watch --dry-run  # show what it would do
 ```
 
