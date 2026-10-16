@@ -13,7 +13,7 @@ const inputs = (over: Partial<RuleInputs> = {}): RuleInputs => ({
   ...over,
 });
 
-const BENCH_PATHS = [
+const SAMPLE_PATHS = [
   "Sources/App/HomeView.swift",
   "Sources/App/Generated/API.generated.swift",
   "Tests/AppTests/__Snapshots__/HomeViewTests/a.txt",
@@ -56,7 +56,7 @@ describe("resolveRules", () => {
     expect(c.presets).toEqual([]);
     expect(c.sources.map((s) => s.name)).toEqual([".github/review-ignore"]);
 
-    const r = matchPaths(c.sources, BENCH_PATHS);
+    const r = matchPaths(c.sources, SAMPLE_PATHS);
     expect(r.find((x) => x.path === "Package.resolved")!.hidden).toBe(true);
     // Snapshots are NOT hidden: the swift preset was never loaded.
     expect(r.find((x) => x.path.includes("__Snapshots__"))!.hidden).toBe(false);
@@ -90,7 +90,7 @@ describe("resolveRules", () => {
           gitattributes: await fixture("gitattributes-linguist"),
         }),
       );
-      const r = matchPaths(c.sources, BENCH_PATHS);
+      const r = matchPaths(c.sources, SAMPLE_PATHS);
       const gen = r.find((x) => x.path === "Sources/App/Generated/API.generated.swift")!;
       expect(gen.hidden).toBe(true);
       expect(r.find((x) => x.path === "Sources/App/HomeView.swift")!.hidden).toBe(false);
@@ -98,7 +98,7 @@ describe("resolveRules", () => {
 
     test("review-ignore wins: its ! pulls a directory back out of the preset", async () => {
       const c = resolveRules(inputs({ reviewIgnore: await fixture("review-ignore-escape-hatch") }));
-      const r = matchPaths(c.sources, BENCH_PATHS);
+      const r = matchPaths(c.sources, SAMPLE_PATHS);
 
       const challenge = r.find((x) => x.path.includes("ChallengeTests"))!;
       expect(challenge.hidden).toBe(false);
@@ -110,14 +110,14 @@ describe("resolveRules", () => {
     });
   });
 
-  test("the bench repo's config hides snapshots, generated code and locks, and nothing else", async () => {
+  test("a Swift repo's config hides snapshots, generated code and locks, and nothing else", async () => {
     const c = resolveRules(
       inputs({
         reviewIgnore: await fixture("review-ignore-swift"),
         gitattributes: "# no linguist rules here on purpose\n* text=auto\n",
       }),
     );
-    const paths = (await fixture("bench-files.txt")).trim().split("\n");
+    const paths = (await fixture("sample-files.txt")).trim().split("\n");
     const r = matchPaths(c.sources, paths);
     const hidden = r.filter((x) => x.hidden).map((x) => x.path);
     expect(hidden).toEqual([

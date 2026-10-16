@@ -1,7 +1,6 @@
 # gh-skim
 
 `gh skim`: a gh extension that marks noise files in a pull request as viewed.
-Public repo; the private hosted App (`Accordy/skim-app`) pins it as a submodule.
 
 ## Commands
 
@@ -26,8 +25,6 @@ Each package depends only on the ones above it.
 - `packages/github`: GraphQL/REST client. Knows nothing about rules.
 - `packages/engine`: load rules, plan, mark, reconcile, undo. Mark storage is the caller's `MarkStore`.
 - `packages/cli`: the `gh skim` command; ledger in `~/.config/gh-skim/`.
-
-The App uses `rules`, `github` and `engine`; changing their exports breaks it.
 
 ## Invariants
 
